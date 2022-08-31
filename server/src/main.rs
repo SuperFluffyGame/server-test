@@ -1,6 +1,8 @@
+use common::Packet;
 use std::{
-    io::{BufReader, Read},
+    io::Read,
     net::{TcpListener, TcpStream},
+    thread,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,17 +10,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for stream in server.incoming() {
         println!("STREAM");
-        handle(BufReader::new(stream?))?;
+        thread::spawn(|| handle(stream.unwrap()).unwrap());
     }
 
     Ok(())
 }
 
-fn handle(mut stream: BufReader<TcpStream>) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = vec![0; 16];
-    stream.read(data.as_mut_slice())?;
+fn handle(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = [0; 16 * 1024];
 
-    println!("{:?}", String::from_utf8(data).unwrap());
-
-    Ok(())
+    loop {
+        stream.read(data.as_mut_slice())?;
+        let packet = Packet::parse(&data);
+        println!("{:?}", packet);
+    }
 }
